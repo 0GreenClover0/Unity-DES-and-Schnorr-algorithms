@@ -236,18 +236,9 @@ public class EncrypterDecrypter : MonoBehaviour
 
     public (byte[][], byte[][]) Rounds(byte[][] keys, byte[][] LPT, byte[][] RPT, Action action)
     {
-        // NativeArray<int> eBoxPerm = new NativeArray<int>(eBoxPermutationTable, Allocator.Temp);
-        // int eBoxBytesLength = eBoxPermutationTable.Length / 8;
         for (int i = 0; i < 16; i++) 
         {
             byte[][] RPTClone = RPT.Select(x => x.ToArray()).ToArray();
-
-            // ParallelPermutation job = new ParallelPermutation();
-            // job.blocks = RPTClone;
-            // job.permutationTable = eBoxPerm;
-            // job.permutationTableBytesLength = eBoxBytesLength;
-            // JobHandle handle = job.Schedule(RPTClone.Length, 1);
-            // handle.Complete();
 
             RPTClone = DoPermutationOnBlocks(eBoxPermutationTable, RPTClone);
 
@@ -263,7 +254,6 @@ public class EncrypterDecrypter : MonoBehaviour
 
             RPT = RPTClone.Select(x => x.ToArray()).ToArray();
         }
-        // eBoxPerm.Dispose();
 
         return (LPT, RPT);
     }
@@ -554,6 +544,7 @@ public class EncrypterDecrypter : MonoBehaviour
     {
         byte[][] keys = CreateTwoDimByteArray(firstDimLength: 16, secondDimLength: 6);
 
+        // Shuffle bits of the key, discard every eighth bit of the original key
         int permutationChoice1TableBytesLength = permutedChoiceTable1.Length / 8;
         key = DoPermutationAndResizeIfNeeded(permutedChoiceTable1, key, permutationChoice1TableBytesLength);
 
