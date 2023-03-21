@@ -66,7 +66,8 @@ public class FileManager : MonoBehaviour
     {
         var bp = new BrowserProperties();
 
-        new FileBrowser().OpenFileBrowser(bp, path => {
+        new FileBrowser().SaveFileBrowser(bp, "savedFile", ".txt", path =>
+        {
             encryptSavePath.SetTextWithoutNotify(path);
             encryptSavePathValidated = path;
         });
@@ -76,7 +77,8 @@ public class FileManager : MonoBehaviour
     {
         var bp = new BrowserProperties();
 
-        new FileBrowser().OpenFileBrowser(bp, path => {
+        new FileBrowser().SaveFileBrowser(bp, "savedFile", ".txt", path =>
+        {
             decryptSavePath.SetTextWithoutNotify(path);
             decryptSavePathValidated = path;
         });

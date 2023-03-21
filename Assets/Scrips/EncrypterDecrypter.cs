@@ -7,8 +7,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.IO;
-using Unity.Collections;
-using Unity.Jobs;
 
 // TODO: Move whole encoding functionality to a separate class
 public class EncrypterDecrypter : MonoBehaviour
@@ -323,6 +321,8 @@ public class EncrypterDecrypter : MonoBehaviour
 
             decryptInputField.text = output;
         }
+
+        gui.ShowAlert("Dane zaszyfrowane", "");
     }
 
     public void OnDecryptClick()
@@ -464,6 +464,8 @@ public class EncrypterDecrypter : MonoBehaviour
                 }
             }
         }
+
+        gui.ShowAlert("Dane odszyfrowane", "");
     }
 
     private byte[][] EncryptOrDecrypt(byte[] input, string keyInHex, Action action)
