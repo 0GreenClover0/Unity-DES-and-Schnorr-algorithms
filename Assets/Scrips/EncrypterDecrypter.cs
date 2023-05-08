@@ -147,7 +147,7 @@ public class EncrypterDecrypter : MonoBehaviour
         keyInputField.text = "133457799BBCDFF1";
     }
 
-    public byte[] GetBytesFromString(string text, bool asHex)
+    public static byte[] GetBytesFromString(string text, bool asHex)
     {
         byte[] result;
         if (asHex)
@@ -163,7 +163,7 @@ public class EncrypterDecrypter : MonoBehaviour
         return ReverseBitsInBytes(result);
     }
 
-    public byte[] ParseHexBytes(string s)
+    public static byte[] ParseHexBytes(string s)
     {
         if (s == null)
             throw new ArgumentNullException("s");
@@ -719,7 +719,7 @@ public class EncrypterDecrypter : MonoBehaviour
         }    
     }
 
-    public byte[] ReverseBitsInBytes(byte[] bytes)
+    public static byte[] ReverseBitsInBytes(byte[] bytes)
     {
         BitArray bits = new BitArray(bytes);
 
