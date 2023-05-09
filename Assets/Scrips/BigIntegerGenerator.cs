@@ -5,7 +5,7 @@ using UnityEngine.Assertions;
 
 class BigIntegerGenerator
 {
-    public static BigInteger NextBigInteger(int bitLength)
+    public static BigInteger NextBigInteger(int bitLength, bool even = false)
     {
         if (bitLength < 1) return BigInteger.Zero;
 
@@ -20,6 +20,9 @@ class BigIntegerGenerator
         // Mask out the unnecessary bits.
         byte mask = (byte)(0xFF >> (8 - bits));
         bs[bs.Length - 1] &= mask;
+
+        if (even)
+            bs[0] = 0;
 
         return new BigInteger(bs);
     }

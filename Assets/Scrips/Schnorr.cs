@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
@@ -6,31 +7,43 @@ using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Assertions;
+using UnityEngine.UI;
 
 public class Schnorr : MonoBehaviour
 {
     public GUI gui;
-    public TMP_InputField signInputField;
-    public TMP_InputField signatureInputField;
+    public FileManager fileManager;
+
+    [SerializeField] private TMP_InputField signInputField;
+    [SerializeField] private TMP_InputField signatureInputField;
+
+    [SerializeField] private Toggle signFromFile;
+    [SerializeField] private Toggle verifyFromFile;
+
+    [SerializeField] private TMP_InputField publicKey;
+    [SerializeField] private TMP_InputField privateKey;
+    [SerializeField] private TMP_InputField qText;
+    [SerializeField] private TMP_InputField pText;
+    [SerializeField] private TMP_InputField aText;
 
     private HashAlgorithm hashAlgorithm = HashAlgorithm.Create();
 
-    private BigInteger a, p, v;
+    private BigInteger q, p, a, s, v;
 
-    // TODO: Loading key / content from file
-    // TODO: Displaying keys
-    // TODO: Figure out whole key buffering
+    private System.Random systemRandom = new System.Random();
 
-    public void OnSignPressed()
+    public void GenerateKeys()
     {
-        byte[] contentBytes = null;
-        contentBytes = EncrypterDecrypter.GetBytesFromString(signInputField.text, asHex: false);
+        q = BigInteger.Zero;
+        p = BigInteger.Zero;
+        a = BigInteger.Zero;
+        s = BigInteger.Zero;
+        v = BigInteger.Zero;
 
         // https://mrajacse.files.wordpress.com/2012/01/applied-cryptography-2nd-ed-b-schneier.pdf#%F6F%FD%5C%5CU%EC%E8S%A2ocmd%0C%04%A6Heading4
         // To generate a key pair, first choose two primes, 'p' and 'q', such that 'q' is a prime factor of 'p - 1'
 
         // Generate 'q'
-        BigInteger q;
         bool isPrime = false;
         do
         {
@@ -42,72 +55,82 @@ public class Schnorr : MonoBehaviour
         } while (!isPrime);
 
         // Generate p
-        BigInteger p1, p2, pMinusOne;
-        bool p1Prime = false;
         while (true)
         {
-            // Schnorr recommended that 'p' be about 512 bits
+            BigInteger original = q * BigIntegerGenerator.NextBigInteger(372, even: true) + BigInteger.One;
+            BigInteger temp;
 
-            // Generate two random prime numbers that are 512 bits
-            // Generating two of them is not in accordance to spec, but it's easier to do it like that
-            var temp = GenerateTwoPrimeNumbers(1024);
-
-            // Calculate 'p - 1'
-            pMinusOne = temp.Item1 - BigInteger.One;
-
-            // Calculate the remainder of the '(p - 1) / q'
-            BigInteger remainder = pMinusOne % q;
-
-            // Subtract the calculated remainder from 'p'
-            // Thanks to this, 'p - 1' will for sure be divisible by 'q'. And as 'q' is a prime number,
-            // it will be a prime factor of 'p - 1'
-            p1 = temp.Item1 - remainder;
-
-            // Check if 'p' is (probably) a prime number
-            if (BigIntegerPrimeTest.IsProbablePrime(p1, 2))
+            for (int i = 1; i <= 10; i++)
             {
-                // If it is, mark p1 as the 'p' we are looking for
-                p1Prime = true;
-                break;
+                BigInteger step = new BigInteger(i) * q;
+                temp = original + step;
+                if (BigIntegerPrimeTest.IsProbablePrime(temp, 2))
+                {
+                    p = temp;
+                    break;
+                }
+
+                temp = original - step;
+                if (BigIntegerPrimeTest.IsProbablePrime(temp, 2))
+                {
+                    p = temp;
+                    break;
+                }
             }
 
-            // If p1 is not meeting the conditions, repeat the procedure for p2
-
-            pMinusOne = temp.Item2 - BigInteger.One;
-
-            remainder = pMinusOne % q;
-
-            p2 = temp.Item2 - remainder;
-
-            if (BigIntegerPrimeTest.IsProbablePrime(p2, 2))
+            if (p != BigInteger.Zero)
+            {
                 break;
+            }
         }
-
-        p = p1Prime ? p1 : p2;
 
         // Then, choose an 'a' not equal to 1, thanks to which 'h^k' will be not congruent to '1 mod p'
         // This means that 'h^k mod p' can't result in a value of 1 
         BigInteger k = (p - BigInteger.One) / q;
         do
         {
-            BigInteger h = BigIntegerGenerator.NextBigIntegerInRange(new System.Random(), BigInteger.One + BigInteger.One, p);
+            BigInteger h = BigIntegerGenerator.NextBigIntegerInRange(systemRandom, BigInteger.One + BigInteger.One, p);
 
             a = BigInteger.ModPow(h, k, p);
         } while (a == BigInteger.One);
+
+        // To generate a particular public-key/private-key key pair
+        // choose a random number 's' less than 'q', this is the private key
+        s = BigIntegerGenerator.RandomBigInteger(BigInteger.Zero, q);
+
+        // Then calculate 'v = a^(-s) mod p'. This is the public key.
+        v = BigInteger.ModPow(a, s, p);
+        v = ModInverse(v, p); // NOTE: BigInteger.ModPow doesn't take negative exponents as an argument, so we need to ModInverse() the result
+
+        publicKey.text = BytesToString(v.ToByteArray());
+        privateKey.text = BytesToString(s.ToByteArray());
+        qText.text = BytesToString(q.ToByteArray());
+        pText.text = BytesToString(p.ToByteArray());
+        aText.text = BytesToString(a.ToByteArray());
+    }
+
+    public void OnSignPressed()
+    {
+        if (signFromFile.isOn && String.IsNullOrEmpty(fileManager.encryptLoadPathValidated))
+        {
+            gui.ShowAlert("Opcja 'Podpisywanie pliku' jest wybrana, ale plik źródłowy nie został wybrany.");
+            return;
+        }
+
+        if (a == BigInteger.Zero)
+            GenerateKeys();
+
+        byte[] contentBytes = null;
+        if (signFromFile.isOn)
+            contentBytes = File.ReadAllBytes(fileManager.encryptLoadPathValidated);
+        else
+            contentBytes = EncrypterDecrypter.GetBytesFromString(signInputField.text, asHex: false);
 
         // Pick a random number 'r', less than 'q'
         BigInteger r = BigIntegerGenerator.RandomBigInteger(BigInteger.Zero, q);
 
         // And compute 'x = a^r mod p'
         BigInteger x = BigInteger.ModPow(a, r, p);
-
-        // To generate a particular public-key/private-key key pair
-        // choose a random number 's' less than 'q'
-        BigInteger s = BigIntegerGenerator.RandomBigInteger(BigInteger.Zero, q);
-
-        // Then calculate 'v = a^(-s) mod p'. This is the public key.
-        v = BigInteger.ModPow(a, s, p);
-        v = ModInverse(v, p); // NOTE: BigInteger.ModPow doesn't take negative exponents as an argument, so we need to ModInverse() the result
 
         // Concatenate the message 'M' and 'x'
         byte[] bytes = contentBytes.Concat(x.ToByteArray()).ToArray();
@@ -132,8 +155,17 @@ public class Schnorr : MonoBehaviour
 
     public void OnVerifyPressed()
     {
+        if (verifyFromFile.isOn && String.IsNullOrEmpty(fileManager.decryptLoadPathValidated))
+        {
+            gui.ShowAlert("Opcja 'Weryfikowanie pliku' jest wybrana, ale plik źródłowy nie został wybrany.");
+            return;
+        }
+
         byte[] contentBytes = null;
-        contentBytes = EncrypterDecrypter.GetBytesFromString(signInputField.text, asHex: false);
+        if (verifyFromFile.isOn)
+            contentBytes = File.ReadAllBytes(fileManager.decryptLoadPathValidated);
+        else
+            contentBytes = EncrypterDecrypter.GetBytesFromString(signInputField.text, asHex: false);
 
         string signatureText = signatureInputField.text;
         string[] signatureParts = signatureText.Split(Environment.NewLine.ToCharArray());
@@ -171,62 +203,6 @@ public class Schnorr : MonoBehaviour
         for (int i = 0; i < numberChars; i += 2)
             bytes[i / 2] = Convert.ToByte(hex.Substring(i, 2), 16);
         return bytes;
-    }
-
-    private (BigInteger, BigInteger) GenerateTwoPrimeNumbers(int length)
-    {
-        using (RSACryptoServiceProvider myRsa = new RSACryptoServiceProvider(length))
-        {
-            byte[] sbin; // The raw byte array
-            byte[] ubin;
-
-            // Export RSA certificate to an XML string
-            string xml = myRsa.ToXmlString(true);
-
-            BigInteger bigPrime1;
-            BigInteger bigPrime2;
-            int pEndIndex = 0;
-            {
-                // Locate <P> in the Base64 certificate
-                int s = xml.IndexOf("<P>") + 3;
-                pEndIndex = xml.IndexOf("<", s);
-                int l = pEndIndex - s;
-
-                // Convert P from Base64 to a raw byte array
-                sbin = Convert.FromBase64String(xml.Substring(s, l));
-                Array.Reverse(sbin);
-
-                // Postfix a null byte to keep BigInteger happy
-                ubin = new byte[sbin.Length + 1];
-                ubin[sbin.Length] = 0;
-
-                Buffer.BlockCopy(sbin, 0, ubin, 0, sbin.Length);
-
-                // Convert the bytes into positive BigNumber
-                bigPrime1 = new BigInteger(ubin);
-            }
-
-            {
-                // Locate <Q> in the Base64 certificate
-                int s = xml.IndexOf("<Q>", pEndIndex) + 3;
-                int l = xml.IndexOf("<", s) - s;
-
-                // Convert P from Base64 to a raw byte array
-                sbin = Convert.FromBase64String(xml.Substring(s, l));
-                Array.Reverse(sbin);
-
-                // Postfix a null byte to keep BigInteger happy
-                ubin = new byte[sbin.Length + 1];
-                ubin[sbin.Length] = 0;
-
-                Buffer.BlockCopy(sbin, 0, ubin, 0, sbin.Length);
-
-                // Convert the bytes into positive BigNumber
-                bigPrime2 = new BigInteger(ubin);
-            }
-
-            return (bigPrime1, bigPrime2);
-        }
     }
 
     private static BigInteger ModInverse(BigInteger value, BigInteger modulo) {

@@ -16,20 +16,20 @@ public class FileManager : MonoBehaviour
 
     private void OnEnable()
     {
-        encryptLoadPath.onValueChanged.AddListener(OnEncryptLoadPathChange);
-        encryptSavePath.onValueChanged.AddListener(OnEncryptSavePathChange);
+        encryptLoadPath?.onValueChanged.AddListener(OnEncryptLoadPathChange);
+        encryptSavePath?.onValueChanged.AddListener(OnEncryptSavePathChange);
 
-        decryptLoadPath.onValueChanged.AddListener(OnDecryptLoadPathChange);
-        decryptSavePath.onValueChanged.AddListener(OnDecryptSavePathChange);
+        decryptLoadPath?.onValueChanged.AddListener(OnDecryptLoadPathChange);
+        decryptSavePath?.onValueChanged.AddListener(OnDecryptSavePathChange);
     }
 
     private void OnDisable()
     {
-        encryptLoadPath.onValueChanged.RemoveListener(OnEncryptLoadPathChange);
-        encryptSavePath.onValueChanged.RemoveListener(OnEncryptSavePathChange);
+        encryptLoadPath?.onValueChanged.RemoveListener(OnEncryptLoadPathChange);
+        encryptSavePath?.onValueChanged.RemoveListener(OnEncryptSavePathChange);
 
-        decryptLoadPath.onValueChanged.RemoveListener(OnDecryptLoadPathChange);
-        decryptSavePath.onValueChanged.RemoveListener(OnDecryptSavePathChange);
+        decryptLoadPath?.onValueChanged.RemoveListener(OnDecryptLoadPathChange);
+        decryptSavePath?.onValueChanged.RemoveListener(OnDecryptSavePathChange);
     }
 
     private void OnEncryptLoadPathChange(string newValue)
